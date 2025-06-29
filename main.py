@@ -29,15 +29,24 @@ peft_config = LoraConfig(
 model = get_peft_model(model, peft_config)
 
 # 3. 데이터셋 로딩 및 전처리
-streamed = load_dataset(
+# streamed = load_dataset(
+#     path="/datasets/github-code/github-code-clean",
+#     data_dir="/datasets/github-code/hf_data",
+#     cache_dir="/datasets/github-code/hf_cache",
+#     trust_remote_code=True,
+#     streaming=True
+# )
+# subset = list(islice(streamed["train"], 10000))
+# dataset = Dataset.from_list(subset)
+
+
+dataset = load_dataset(
     path="/datasets/github-code/github-code-clean",
     data_dir="/datasets/github-code/hf_data",
     cache_dir="/datasets/github-code/hf_cache",
     trust_remote_code=True,
-    streaming=True
+#     streaming=True
 )
-subset = list(islice(streamed["train"], 10000))
-dataset = Dataset.from_list(subset)
 
 # 텍스트 포맷 정의
 def format_example(example):
@@ -118,5 +127,6 @@ for epoch in range(num_epochs):
 
 # 8. 모델 저장
 if accelerator.is_main_process:
-    model.save_pretrained("./gemma-2b-code-finetuned")
+    unwrapped_model = accelerator.unwrap_model(model)
+    unwrapped_model.save_pretrained("./gemma-2b-code-finetuned")
     tokenizer.save_pretrained("./gemma-2b-code-finetuned")
