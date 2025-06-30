@@ -29,24 +29,17 @@ peft_config = LoraConfig(
 model = get_peft_model(model, peft_config)
 
 # 3. 데이터셋 로딩 및 전처리
-# streamed = load_dataset(
-#     path="/datasets/github-code/github-code-clean",
-#     data_dir="/datasets/github-code/hf_data",
-#     cache_dir="/datasets/github-code/hf_cache",
-#     trust_remote_code=True,
-#     streaming=True
-# )
-# subset = list(islice(streamed["train"], 10000))
-# dataset = Dataset.from_list(subset)
-
-
-dataset = load_dataset(
+streamed = load_dataset(
     path="/datasets/github-code/github-code-clean",
     data_dir="/datasets/github-code/hf_data",
     cache_dir="/datasets/github-code/hf_cache",
     trust_remote_code=True,
-#     streaming=True
+    streaming=True
 )
+subset = list(islice(streamed["train"], 10000))
+dataset = Dataset.from_list(subset)
+
+
 
 # 텍스트 포맷 정의
 def format_example(example):
