@@ -1,0 +1,34 @@
+FROM /datasets/github-code/gemma-2b-code-finetuned
+
+# 모델 메타데이터
+TEMPLATE """{{ if .System }}<|im_start|>system
+{{ .System }}<|im_end|>
+{{ end }}{{ if .Prompt }}<|im_start|>user
+{{ .Prompt }}<|im_end|>
+<|im_start|>assistant
+{{ end }}{{ .Response }}<|im_end|>
+"""
+
+# 코드 생성에 최적화된 파라미터
+PARAMETER temperature 0.7
+PARAMETER top_p 0.9
+PARAMETER top_k 40
+PARAMETER repeat_penalty 1.1
+PARAMETER num_ctx 4096
+PARAMETER num_predict 512
+
+# 시스템 프롬프트 (코드 생성 특화)
+SYSTEM """You are a helpful coding assistant specialized in generating high-quality code snippets. 
+You understand multiple programming languages and can generate clean, efficient, and well-documented code.
+When generating code, follow these guidelines:
+1. Write clean, readable code with proper indentation
+2. Include helpful comments when necessary
+3. Follow language-specific best practices
+4. Generate complete, functional code snippets
+"""
+
+# 모델 정보
+DESCRIPTION "Fine-tuned Gemma-2b model specialized for code generation. Trained on GitHub code repository data with LoRA (Low-Rank Adaptation) technique."
+
+# 라이선스 정보
+LICENSE "Custom fine-tuned model based on Google Gemma-2b" 

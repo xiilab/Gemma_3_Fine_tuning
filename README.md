@@ -16,7 +16,7 @@ Google Gemma-3 모델을 한국어 질의응답 데이터셋으로 파인튜닝�
 - **데이터셋**: KorQuAD/squad_kor_v1 (한국어 질의응답)
 - **파인튜닝 기법**: QLoRA (Quantized Low-Rank Adaptation)
 - **GPU 지원**: NVIDIA V100, CUDA 12.2
-- **프레임워크**: Transformers, PEFT, Accelerate, MLflow
+- **프레임워크**: Transformers, PEFT, Accelerate, MLflow, Ollama
 
 ## 📁 프로젝트 구조
 
@@ -26,6 +26,9 @@ Gemma_3_Fine_tuning/
 ├── main.py                      # 파인튜닝 실행 스크립트 (MLflow 연동)
 ├── load_model.py                # 파인튜닝된 모델 테스트 스크립트
 ├── mlflow_utils.py              # MLflow 실험 관리 유틸리티
+├── Modelfile                    # Ollama 모델 설정 파일
+├── ollama_setup.py              # Ollama 연동 관리 스크립트
+├── install_ollama.sh            # Ollama 설치 스크립트
 ├── main.ipynb                   # 실험용 노트북
 ├── Gemma_3_Fine_tuning.ipynb   # 메인 파인튜닝 노트북
 ├── Dockerfile                   # Docker 환경 설정
@@ -96,7 +99,24 @@ python mlflow_utils.py
 # - 아티팩트 다운로드
 ```
 
-### 6. Google Colab에서 실행
+### 6. Ollama 연동
+
+```bash
+# 1. Ollama 설치
+./install_ollama.sh
+
+# 2. 파인튜닝된 모델을 Ollama에 등록
+python ollama_setup.py setup
+
+# 3. Ollama로 모델 실행
+ollama run gemma-code-finetuned
+
+# 4. 대화형 채팅 (채팅 클라이언트 생성 후)
+python ollama_setup.py chat
+python ollama_chat.py
+```
+
+### 7. Google Colab에서 실행
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/100milliongold/Gemma_3_Fine_tuning/blob/main/Gemma_3_Fine_tuning.ipynb)
 
@@ -160,6 +180,14 @@ Before answering, think carefully about the question and create a step-by-step c
 - **학습 가능한 파라미터**: 약 8M개 (전체 모델의 일부만 학습)
 - **메모리 사용량**: ~14GB VRAM (V100 기준)
 - **학습 시간**: 약 2-3시간 (10,000 샘플 기준)
+
+## 🦙 Ollama 연동 특징
+
+- **로컬 실행**: 인터넷 연결 없이 로컬에서 모델 실행
+- **REST API**: HTTP API를 통한 모델 접근
+- **스트리밍 응답**: 실시간 텍스트 생성
+- **다중 모델 관리**: 여러 모델을 동시에 관리 가능
+- **웹 인터페이스**: 선택적 웹 UI 지원
 
 ## 🤝 기여하기
 
