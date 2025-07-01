@@ -57,7 +57,7 @@ pip install transformers peft datasets accelerate tqdm bitsandbytes
 ### 1. Python 스크립트 실행
 
 ```bash
-python main.py
+accelerate launch main.py
 ```
 
 ### 2. Jupyter 노트북 사용
