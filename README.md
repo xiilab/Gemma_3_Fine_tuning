@@ -16,14 +16,16 @@ Google Gemma-3 모델을 한국어 질의응답 데이터셋으로 파인튜닝�
 - **데이터셋**: KorQuAD/squad_kor_v1 (한국어 질의응답)
 - **파인튜닝 기법**: QLoRA (Quantized Low-Rank Adaptation)
 - **GPU 지원**: NVIDIA V100, CUDA 12.2
-- **프레임워크**: Transformers, PEFT, Accelerate
+- **프레임워크**: Transformers, PEFT, Accelerate, MLflow
 
 ## 📁 프로젝트 구조
 
 ```
 Gemma_3_Fine_tuning/
 ├── README.md                    # 프로젝트 문서
-├── main.py                      # 파인튜닝 실행 스크립트
+├── main.py                      # 파인튜닝 실행 스크립트 (MLflow 연동)
+├── load_model.py                # 파인튜닝된 모델 테스트 스크립트
+├── mlflow_utils.py              # MLflow 실험 관리 유틸리티
 ├── main.ipynb                   # 실험용 노트북
 ├── Gemma_3_Fine_tuning.ipynb   # 메인 파인튜닝 노트북
 ├── Dockerfile                   # Docker 환경 설정
@@ -49,7 +51,7 @@ docker run --gpus all -it -p 22:22 gemma-finetuning
 pip install torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cu121
 
 # 필수 패키지 설치
-pip install transformers peft datasets accelerate tqdm bitsandbytes
+pip install transformers peft datasets accelerate tqdm bitsandbytes mlflow
 ```
 
 ## 🎯 사용법
@@ -60,13 +62,41 @@ pip install transformers peft datasets accelerate tqdm bitsandbytes
 accelerate launch main.py
 ```
 
-### 2. Jupyter 노트북 사용
+### 2. MLflow UI 실행 (실험 추적)
+
+```bash
+# MLflow UI 접속
+# 브라우저에서 http://10.61.3.161:30744/ 접속하여 실험 결과 확인
+```
+
+### 3. Jupyter 노트북 사용
 
 ```bash
 jupyter notebook Gemma_3_Fine_tuning.ipynb
 ```
 
-### 3. Google Colab에서 실행
+### 4. 파인튜닝된 모델 테스트
+
+```bash
+# 학습 완료 후 모델 테스트 (MLflow 또는 로컬 파일에서 자동 로드)
+python load_model.py
+```
+
+### 5. MLflow 실험 관리
+
+```bash
+# MLflow 실험 정보 조회 및 관리
+python mlflow_utils.py
+
+# 사용 가능한 기능:
+# - 실험 목록 조회
+# - 실행 목록 조회
+# - 실행 상세 정보 조회
+# - 등록된 모델 목록 조회
+# - 아티팩트 다운로드
+```
+
+### 6. Google Colab에서 실행
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/100milliongold/Gemma_3_Fine_tuning/blob/main/Gemma_3_Fine_tuning.ipynb)
 
