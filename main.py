@@ -1,12 +1,11 @@
 from transformers import (
     AutoTokenizer,
-    AutoModelForCausalLM,
-    DataCollatorForLanguageModeling
+    AutoModelForCausalLM
 )
-from peft import LoraConfig, get_peft_model, TaskType
+from transformers.data.data_collator import DataCollatorForLanguageModeling, default_data_collator
+from peft import LoraConfig, get_peft_model, TaskType, PeftModel
 from datasets import load_dataset, Dataset
 from torch.utils.data import DataLoader
-from transformers import default_data_collator
 from accelerate import Accelerator
 from torch.optim import AdamW
 from tqdm import tqdm
@@ -14,9 +13,9 @@ from itertools import islice
 import torch
 import mlflow
 import mlflow.pytorch
-import mlflow.transformers
 import os
 from datetime import datetime
+import json
 
 # MLflow 설정
 mlflow.set_tracking_uri("http://10.61.3.161:30744/")  # 원격 MLflow 서버 사용
@@ -34,29 +33,91 @@ hyperparams = {
     "weight_decay": 0.01,
     "num_epochs": 1,
     "max_length": 512,
-    "dataset_size": 10000,
-    "target_modules": ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
+    "dataset_start": 0,  # 데이터셋 시작 인덱스
+    "dataset_end": 10000,  # 데이터셋 끝 인덱스 (exclusive)
+    "target_modules": ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
+    "continue_from_model": None,  # MLflow에서 가져올 모델 이름 (예: "gemma-2b-code-finetuned")
+    "continue_from_run_id": None  # 특정 run_id에서 가져올 경우
 }
+
+def load_model_from_mlflow(model_name=None, run_id=None):
+    """
+    MLflow에서 모델을 로드하는 함수
+    """
+    try:
+        if run_id:
+            # 특정 run_id에서 모델 로드
+            print(f"MLflow run_id {run_id}에서 모델을 로드합니다...")
+            logged_model = f"runs:/{run_id}/peft_model"
+        elif model_name:
+            # 최신 버전의 모델 로드
+            print(f"MLflow Model Registry에서 '{model_name}' 모델을 로드합니다...")
+            logged_model = f"models:/{model_name}/latest"
+        else:
+            print("MLflow에서 모델을 로드하지 않고 새로 시작합니다.")
+            return None, None, None
+
+        # MLflow에서 모델 로드
+        loaded_model = mlflow.pytorch.load_model(logged_model)
+        
+        # 모델 정보 가져오기
+        from mlflow import MlflowClient
+        client = MlflowClient()
+        if run_id:
+            run = client.get_run(run_id)
+        else:
+            # 최신 모델 버전 찾기
+            latest_version = client.get_latest_versions(model_name, stages=["None"])[0]
+            run = client.get_run(latest_version.run_id)
+        
+        # 하이퍼파라미터 정보 가져오기
+        previous_params = run.data.params
+        print(f"이전 학습 하이퍼파라미터: {previous_params}")
+        
+        return loaded_model, previous_params, run_id or latest_version.run_id
+        
+    except Exception as e:
+        print(f"MLflow에서 모델 로드 실패: {e}")
+        print("새로운 모델로 시작합니다.")
+        return None, None, None
 
 # MLflow 실험 시작
 with mlflow.start_run(run_name=f"gemma-finetuning-{datetime.now().strftime('%Y%m%d_%H%M%S')}"):
     # 하이퍼파라미터 로깅
     mlflow.log_params(hyperparams)
     
-    # 1. 모델 및 토크나이저 로딩
-    tokenizer = AutoTokenizer.from_pretrained(hyperparams["model_name"])
-    model = AutoModelForCausalLM.from_pretrained(hyperparams["model_name"])
-
-    # 2. QLoRA 설정
-    peft_config = LoraConfig(
-        r=hyperparams["lora_r"],
-        lora_alpha=hyperparams["lora_alpha"],
-        lora_dropout=hyperparams["lora_dropout"],
-        bias="none",
-        task_type=TaskType.CAUSAL_LM,
-        target_modules=hyperparams["target_modules"]
+    # MLflow에서 기존 모델 로드 시도
+    loaded_model, previous_params, source_run_id = load_model_from_mlflow(
+        model_name=hyperparams.get("continue_from_model"),
+        run_id=hyperparams.get("continue_from_run_id")
     )
-    model = get_peft_model(model, peft_config)
+    
+    if loaded_model is not None:
+        print("✅ MLflow에서 기존 모델을 성공적으로 로드했습니다.")
+        model = loaded_model
+        tokenizer = AutoTokenizer.from_pretrained(hyperparams["model_name"])
+        
+        # 이전 학습 정보 로깅
+        if source_run_id:
+            mlflow.log_param("continued_from_run_id", source_run_id)
+        if previous_params:
+            mlflow.log_param("previous_training_params", json.dumps(previous_params))
+    else:
+        print("🆕 새로운 모델을 초기화합니다.")
+        # 1. 모델 및 토크나이저 로딩
+        tokenizer = AutoTokenizer.from_pretrained(hyperparams["model_name"])
+        model = AutoModelForCausalLM.from_pretrained(hyperparams["model_name"])
+
+        # 2. QLoRA 설정
+        peft_config = LoraConfig(
+            r=hyperparams["lora_r"],
+            lora_alpha=hyperparams["lora_alpha"],
+            lora_dropout=hyperparams["lora_dropout"],
+            bias="none",
+            task_type=TaskType.CAUSAL_LM,
+            target_modules=hyperparams["target_modules"]
+        )
+        model = get_peft_model(model, peft_config)
 
     # 3. 데이터셋 로딩 및 전처리
     streamed = load_dataset(
@@ -66,20 +127,28 @@ with mlflow.start_run(run_name=f"gemma-finetuning-{datetime.now().strftime('%Y%m
         trust_remote_code=True,
         streaming=True
     )
-    subset = list(islice(streamed["train"], hyperparams["dataset_size"]))
+    # 스트리밍 데이터셋에서 데이터 추출 (start ~ end 범위)
+    subset = []
+    start_idx = hyperparams["dataset_start"]
+    end_idx = hyperparams["dataset_end"]
+    
+    # start부터 end까지의 데이터만 추출
+    for i, item in enumerate(islice(streamed["train"], end_idx)):
+        if i >= start_idx:
+            subset.append(item)
     dataset = Dataset.from_list(subset)
 
     # 텍스트 포맷 정의
     def format_example(example):
         code = example.get("code") or example.get("text") or example.get("content")
-        language = example.get("language")
+        language = example.get("language", "unknown")
         return {"text": f"# {language.strip()} code snippet:\n{code}"}
 
     dataset = dataset.map(format_example)
 
     # 토크나이징 및 라벨 추가
     def tokenize_and_add_labels(example):
-        text = example.get("text")
+        text = example.get("text", "")
         result = tokenizer(
             text,
             truncation=True,
@@ -114,7 +183,10 @@ with mlflow.start_run(run_name=f"gemma-finetuning-{datetime.now().strftime('%Y%m
 
     # 6. Accelerator 초기화
     accelerator = Accelerator()
-    model.config.use_cache = False
+    
+    # 모델 설정
+    if hasattr(model, 'config'):
+        model.config.use_cache = False
     model.enable_input_require_grads()  # gradient 흐름 보장
     model.gradient_checkpointing_enable()
     model, train_dataloader, optimizer = accelerator.prepare(model, train_dataloader, optimizer)

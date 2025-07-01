@@ -1,0 +1,105 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyTorch
+*.pth
+*.pt
+*.ckpt
+*.safetensors
+
+# MLflow
+mlruns/
+mlflow.db
+mlflow-artifacts/
+.mlflow/
+
+# Model files
+*.bin
+*.safetensors
+*.json
+*.txt
+!requirements.txt
+!README.md
+
+# Training artifacts
+outputs/
+checkpoints/
+logs/
+runs/
+wandb/
+
+# Dataset cache
+.cache/
+datasets/
+hf_cache/
+hf_data/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# Environment
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# Training config files
+training_config.txt
+model_info.json
+
+# Model save directories
+gemma-2b-code-finetuned/
+finetuned_models/
+
+# Logs
+*.log
+logs/
+
+# GPU memory dumps
+*.dump 

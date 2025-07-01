@@ -1,217 +1,149 @@
-# Gemma-3 Fine-tuning Project
+# Gemma-2b 코드 파인튜닝 with MLflow 연속 학습
 
-Google Gemma-3 모델을 한국어 질의응답 데이터셋으로 파인튜닝하는 프로젝트입니다. QLoRA(Quantized Low-Rank Adaptation) 기법을 사용하여 효율적인 파인튜닝을 수행합니다.
+이 프로젝트는 Google Gemma-2b 모델을 코드 데이터로 파인튜닝하고, MLflow를 통해 모델을 관리하며 연속 학습을 지원합니다.
 
-## 📋 프로젝트 개요
+## 🚀 주요 기능
 
-이 프로젝트는 다음과 같은 목적으로 개발되었습니다:
-- Google Gemma-3-4b-it 모델을 한국어 질의응답에 특화하여 파인튜닝
-- KorQuAD/squad_kor_v1 데이터셋을 활용한 한국어 이해 능력 향상
-- QLoRA 기법을 통한 메모리 효율적인 파인튜닝
-- V100 GPU 환경에서의 최적화된 학습
+- **QLoRA 파인튜닝**: 메모리 효율적인 LoRA 기반 파인튜닝
+- **MLflow 통합**: 실험 추적, 모델 버전 관리, 아티팩트 저장
+- **연속 학습**: 이전 학습된 모델을 로드하여 추가 학습 가능
+- **데이터셋 범위 선택**: `dataset_start`와 `dataset_end`로 특정 범위의 데이터만 학습
+- **자동 모델 저장**: 학습 완료 후 자동으로 MLflow에 모델 등록
 
-## 🚀 주요 특징
+## 📋 사용 방법
 
-- **모델**: Google Gemma-3-4b-it (Instruction-tuned)
-- **데이터셋**: KorQuAD/squad_kor_v1 (한국어 질의응답)
-- **파인튜닝 기법**: QLoRA (Quantized Low-Rank Adaptation)
-- **GPU 지원**: NVIDIA V100, CUDA 12.2
-- **프레임워크**: Transformers, PEFT, Accelerate, MLflow, Ollama
-
-## 📁 프로젝트 구조
-
-```
-Gemma_3_Fine_tuning/
-├── README.md                    # 프로젝트 문서
-├── main.py                      # 파인튜닝 실행 스크립트 (MLflow 연동)
-├── load_model.py                # 파인튜닝된 모델 테스트 스크립트
-├── mlflow_utils.py              # MLflow 실험 관리 유틸리티
-├── Modelfile                    # Ollama 모델 설정 파일
-├── ollama_setup.py              # Ollama 연동 관리 스크립트
-├── install_ollama.sh            # Ollama 설치 스크립트
-├── main.ipynb                   # 실험용 노트북
-├── Gemma_3_Fine_tuning.ipynb   # 메인 파인튜닝 노트북
-├── Dockerfile                   # Docker 환경 설정
-└── .ipynb_checkpoints/         # Jupyter 체크포인트
-```
-
-## 🛠️ 설치 및 환경 설정
-
-### 1. Docker를 사용한 환경 구성 (권장)
+### 1. 새로운 모델로 학습 시작
 
 ```bash
-# Docker 이미지 빌드
-docker build -t gemma-finetuning .
-
-# 컨테이너 실행 (GPU 지원)
-docker run --gpus all -it -p 22:22 gemma-finetuning
+python main.py
 ```
 
-### 2. 직접 설치
+### 2. MLflow에서 기존 모델을 로드하여 연속 학습
 
+#### 사용 가능한 모델 목록 확인
 ```bash
-# Python 3.12 환경 권장
-pip install torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cu121
-
-# 필수 패키지 설치
-pip install transformers peft datasets accelerate tqdm bitsandbytes mlflow
+python continue_training.py --list-models
 ```
 
-## 🎯 사용법
-
-### 1. Python 스크립트 실행
-
+#### 최근 학습 실행 목록 확인
 ```bash
-accelerate launch main.py
+python continue_training.py --list-runs
 ```
 
-### 2. MLflow UI 실행 (실험 추적)
-
+#### 특정 모델 이름으로 연속 학습
 ```bash
-# MLflow UI 접속
-# 브라우저에서 http://10.61.3.161:30744/ 접속하여 실험 결과 확인
+python continue_training.py --model-name gemma-2b-code-finetuned --epochs 2 --learning-rate 1e-4
 ```
 
-### 3. Jupyter 노트북 사용
-
+#### 특정 run_id로 연속 학습
 ```bash
-jupyter notebook Gemma_3_Fine_tuning.ipynb
+python continue_training.py --run-id abc123def456 --epochs 1 --batch-size 4
 ```
 
-### 4. 파인튜닝된 모델 테스트
-
+#### 특정 데이터셋 범위로 연속 학습
 ```bash
-# 학습 완료 후 모델 테스트 (MLflow 또는 로컬 파일에서 자동 로드)
-python load_model.py
+# 5000~15000 범위의 데이터로 연속 학습
+python continue_training.py --model-name gemma-2b-code-finetuned --dataset-start 5000 --dataset-end 15000
+
+# 10000~20000 범위의 데이터로 연속 학습  
+python continue_training.py --model-name gemma-2b-code-finetuned --dataset-start 10000 --dataset-end 20000 --epochs 2
 ```
 
-### 5. MLflow 실험 관리
+### 3. 하이퍼파라미터 직접 수정
 
-```bash
-# MLflow 실험 정보 조회 및 관리
-python mlflow_utils.py
+`main.py` 파일에서 `hyperparams` 딕셔너리를 수정하여 연속 학습 설정:
 
-# 사용 가능한 기능:
-# - 실험 목록 조회
-# - 실행 목록 조회
-# - 실행 상세 정보 조회
-# - 등록된 모델 목록 조회
-# - 아티팩트 다운로드
-```
-
-### 6. Ollama 연동
-
-```bash
-# 1. Ollama 설치
-./install_ollama.sh
-
-# 2. 파인튜닝된 모델을 Ollama에 등록
-python ollama_setup.py setup
-
-# 3. Ollama로 모델 실행
-ollama run gemma-code-finetuned
-
-# 4. 대화형 채팅 (채팅 클라이언트 생성 후)
-python ollama_setup.py chat
-python ollama_chat.py
-```
-
-### 7. Google Colab에서 실행
-
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/100milliongold/Gemma_3_Fine_tuning/blob/main/Gemma_3_Fine_tuning.ipynb)
-
-## ⚙️ 주요 설정
-
-### QLoRA 설정
 ```python
-peft_config = LoraConfig(
-    r=8,                    # Low-rank dimension
-    lora_alpha=16,          # LoRA scaling parameter
-    lora_dropout=0.1,       # Dropout probability
-    bias="none",
-    task_type=TaskType.CAUSAL_LM,
-    target_modules=["q_proj", "k_proj", "v_proj", "o_proj", 
-                   "gate_proj", "up_proj", "down_proj"]
-)
+hyperparams = {
+    # ... 기존 설정 ...
+    "continue_from_model": "gemma-2b-code-finetuned",  # MLflow에서 로드할 모델 이름
+    "continue_from_run_id": None,  # 또는 특정 run_id
+    "num_epochs": 2,  # 추가 학습할 에포크 수
+    "learning_rate": 1e-4,  # 새로운 학습률
+    "dataset_start": 5000,  # 데이터셋 시작 인덱스
+    "dataset_end": 15000,   # 데이터셋 끝 인덱스 (exclusive)
+}
 ```
 
-### 학습 파라미터
-- **배치 크기**: 2
-- **학습률**: 2e-4
-- **에포크**: 1
-- **최대 시퀀스 길이**: 512
-- **옵티마이저**: AdamW (weight_decay=0.01)
+## 🔧 설정
 
-## 📊 데이터셋
+### MLflow 서버 설정
+- **서버 주소**: http://10.61.3.161:30744/
+- **실험 이름**: Gemma-2b-Code-Finetuning
+- **모델 레지스트리**: 자동으로 모델이 등록됨
 
-**KorQuAD/squad_kor_v1** 데이터셋을 사용합니다:
-- 한국어 질의응답 데이터셋
-- SQuAD 형식의 한국어 버전
-- 질문-답변 쌍으로 구성
-
-### 프롬프트 템플릿
-```
-Below is an instruction that describes a task, paired with an input that provides further context.
-Write a response that appropriately completes the request.
-Before answering, think carefully about the question and create a step-by-step chain of thoughts to ensure a logical and accurate response.
-
-### Question:
-{question}
-
-### Response:
-{answer}
+### 기본 하이퍼파라미터
+```python
+{
+    "model_name": "google/gemma-2b",
+    "lora_r": 8,
+    "lora_alpha": 16,
+    "lora_dropout": 0.1,
+    "batch_size": 2,
+    "learning_rate": 2e-4,
+    "weight_decay": 0.01,
+    "num_epochs": 1,
+    "max_length": 512,
+    "dataset_start": 0,  # 데이터셋 시작 인덱스
+    "dataset_end": 10000,  # 데이터셋 끝 인덱스 (exclusive)
+    "target_modules": ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
+}
 ```
 
-## 🔧 시스템 요구사항
+## 📊 MLflow UI에서 확인
 
-### 최소 요구사항
-- **GPU**: NVIDIA V100 (16GB VRAM) 또는 동급
-- **CUDA**: 12.1 이상
-- **Python**: 3.12
-- **RAM**: 32GB 이상 권장
+학습 완료 후 MLflow UI에서 다음을 확인할 수 있습니다:
 
-### 권장 환경
-- **OS**: Ubuntu 22.04
-- **Docker**: 최신 버전
-- **GPU 드라이버**: 최신 NVIDIA 드라이버
+1. **실험 추적**: http://10.61.3.161:30744/
+2. **모델 레지스트리**: 등록된 모델 버전 관리
+3. **메트릭**: Loss, 파라미터 수, 학습 진행 상황
+4. **아티팩트**: 저장된 모델 파일, 설정 파일
 
-## 📈 성능 및 결과
+## 🔄 연속 학습 워크플로우
 
-- **학습 가능한 파라미터**: 약 8M개 (전체 모델의 일부만 학습)
-- **메모리 사용량**: ~14GB VRAM (V100 기준)
-- **학습 시간**: 약 2-3시간 (10,000 샘플 기준)
+1. **초기 학습**: `python main.py`로 첫 번째 학습 실행
+2. **모델 확인**: MLflow UI에서 학습된 모델 확인
+3. **연속 학습**: `continue_training.py`로 추가 학습 설정
+   - 모델 선택: `--model-name` 또는 `--run-id`
+   - 데이터셋 범위: `--dataset-start`, `--dataset-end`
+   - 학습 파라미터: `--epochs`, `--learning-rate`, `--batch-size`
+4. **재실행**: `python main.py`로 연속 학습 실행
+5. **반복**: 필요에 따라 단계 2-4 반복
 
-## 🦙 Ollama 연동 특징
+## 📁 파일 구조
 
-- **로컬 실행**: 인터넷 연결 없이 로컬에서 모델 실행
-- **REST API**: HTTP API를 통한 모델 접근
-- **스트리밍 응답**: 실시간 텍스트 생성
-- **다중 모델 관리**: 여러 모델을 동시에 관리 가능
-- **웹 인터페이스**: 선택적 웹 UI 지원
+```
+.
+├── main.py                 # 메인 학습 스크립트
+├── continue_training.py    # 연속 학습 설정 도구
+├── README.md              # 이 파일
+└── requirements.txt       # 의존성 패키지
+```
 
-## 🤝 기여하기
+## ⚠️ 주의사항
 
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+1. **메모리 요구사항**: GPU 메모리가 충분한지 확인
+2. **데이터셋 경로**: `/datasets/github-code/` 경로에 데이터셋이 있어야 함
+3. **MLflow 연결**: 네트워크 연결이 안정적인지 확인
+4. **모델 호환성**: 이전 모델과 새로운 설정이 호환되는지 확인
 
-## 📝 라이선스
+## 🐛 문제 해결
 
-이 프로젝트는 MIT 라이선스 하에 배포됩니다.
+### 모델 로드 실패
+- MLflow 서버 연결 확인
+- 모델 이름이나 run_id가 올바른지 확인
+- `--list-models` 또는 `--list-runs`로 사용 가능한 옵션 확인
 
-## 🙏 감사의 말
+### 학습 중 오류
+- GPU 메모리 부족 시 batch_size 줄이기
+- 데이터셋 경로 확인
+- 의존성 패키지 버전 확인
 
-- **원본 출처**: [Kaggle - Fine-tuning Gemma 3](https://www.kaggle.com/code/kingabzpro/fine-tuning-gemma-3-finq-a-reasoning)
-- **수정**: webnautes (KorQuAD 데이터셋 적용)
-- **Hugging Face**: 모델 및 데이터셋 제공
-- **Google**: Gemma 모델 개발
+## 📈 성능 모니터링
 
-## 📞 문의사항
-
-프로젝트에 대한 질문이나 제안사항이 있으시면 Issue를 생성해 주세요.
-
----
-
-**주의**: 이 프로젝트는 교육 및 연구 목적으로 제작되었습니다. 상업적 사용 시에는 관련 라이선스를 확인해 주세요.
+MLflow에서 다음 메트릭을 추적할 수 있습니다:
+- `step_loss`: 각 스텝별 손실
+- `epoch_avg_loss`: 에포크 평균 손실
+- `final_loss`: 최종 손실
+- `trainable_parameters`: 학습 가능한 파라미터 수
+- `total_parameters`: 전체 파라미터 수
