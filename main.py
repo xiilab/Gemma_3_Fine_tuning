@@ -72,7 +72,8 @@ with mlflow.start_run(run_name=f"gemma-finetuning-{datetime.now().strftime('%Y%m
     # 텍스트 포맷 정의
     def format_example(example):
         code = example.get("code") or example.get("text") or example.get("content")
-        return {"text": f"# Python code snippet:\n{code.strip()}"}
+        language = example.get("language")
+        return {"text": f"# {language.strip()} code snippet:\n{code}"}
 
     dataset = dataset.map(format_example)
 
