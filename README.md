@@ -72,6 +72,15 @@ hyperparams = {
 - **실험 이름**: Gemma-2b-Code-Finetuning
 - **모델 레지스트리**: 자동으로 모델이 등록됨
 
+### Accelerate 사용법
+```bash
+# 1단계: 파라미터 설정
+python continue_training.py --model-name gemma-2b-code-finetuned --epochs 10 --learning-rate 1e-4 --dataset-start 0 --dataset-end 100000
+
+# 2단계: accelerate로 main.py 실행
+accelerate launch main.py
+```
+
 ### 기본 하이퍼파라미터
 ```python
 {
@@ -107,17 +116,29 @@ hyperparams = {
    - 모델 선택: `--model-name` 또는 `--run-id`
    - 데이터셋 범위: `--dataset-start`, `--dataset-end`
    - 학습 파라미터: `--epochs`, `--learning-rate`, `--batch-size`
-4. **재실행**: `python main.py`로 연속 학습 실행
+4. **재실행**: `accelerate launch main.py`로 연속 학습 실행
 5. **반복**: 필요에 따라 단계 2-4 반복
+
+## 🎯 Ollama 변환 워크플로우
+
+1. **학습 완료**: 모델 학습이 완료되면 로컬에 병합된 모델 생성
+2. **업로드 확인**: MLflow 업로드 성공 여부 확인
+3. **변환 방법 선택**:
+   - **MLflow에서 변환**: `python mlflow_to_ollama_converter.py --model-name <MODEL_NAME>`
+   - **로컬에서 직접 변환**: `python mlflow_to_ollama_converter.py --local-model-path <PATH> --model-name <MODEL_NAME>`
+4. **Ollama 실행**: `ollama run <MODEL_NAME>`
 
 ## 📁 파일 구조
 
 ```
 .
-├── main.py                 # 메인 학습 스크립트
-├── continue_training.py    # 연속 학습 설정 도구
-├── README.md              # 이 파일
-└── requirements.txt       # 의존성 패키지
+├── main.py                        # 메인 학습 스크립트
+├── continue_training.py           # 연속 학습 설정 도구
+├── retry_mlflow_upload.py         # MLflow 업로드 재시도 스크립트
+├── mlflow_to_ollama_converter.py  # MLflow 모델을 Ollama로 변환
+├── README.md                      # 이 파일
+├── CONVERTER_README.md            # 변환기 사용법
+└── requirements.txt               # 의존성 패키지
 ```
 
 ## ⚠️ 주의사항
@@ -138,6 +159,38 @@ hyperparams = {
 - GPU 메모리 부족 시 batch_size 줄이기
 - 데이터셋 경로 확인
 - 의존성 패키지 버전 확인
+
+### MLflow 업로드 Timeout 오류 해결
+
+#### 문제 상황
+- 큰 모델 파일 (>1GB) 업로드 시 HTTP 500 오류 또는 timeout 발생
+- `ResponseError('too many 500 error responses')` 에러
+
+#### 해결 방법
+
+**방법 1: 재시도 스크립트 사용**
+```bash
+# 별도 업로드 스크립트 실행
+python retry_mlflow_upload.py
+```
+
+**방법 2: 직접 Ollama 변환 (MLflow 우회)**
+```bash
+# 로컬 모델을 직접 Ollama로 변환
+python mlflow_to_ollama_converter.py --local-model-path /datasets/github-code/gemma-2b-code-finetuned_merged --model-name gemma-2b-code-finetuned
+```
+
+**방법 3: 개선된 main.py 사용**
+- 새로운 `main.py`는 자동으로 파일 크기를 확인하고 적절한 업로드 전략 사용
+- 1GB 이상 모델은 자동으로 별도 스크립트 사용 권장
+- 작은 파일(config, tokenizer)부터 단계적 업로드
+
+#### 업로드 개선사항
+- **서버 상태 확인**: 업로드 전 MLflow 서버 health check
+- **파일 크기 기반 전략**: 작은 파일 우선 업로드
+- **재시도 로직**: 실패 시 자동 재시도 (최대 3회)
+- **청크 업로드**: 큰 파일을 개별적으로 처리
+- **타임아웃 설정**: `MLFLOW_HTTP_REQUEST_TIMEOUT=300` (5분)
 
 ## 📈 성능 모니터링
 

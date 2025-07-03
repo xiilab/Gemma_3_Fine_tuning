@@ -74,6 +74,7 @@ def main():
     parser.add_argument("--dataset-end", type=int, default=10000, help="데이터셋 끝 인덱스 (exclusive)")
     parser.add_argument("--list-models", action="store_true", help="사용 가능한 모델 목록 출력")
     parser.add_argument("--list-runs", action="store_true", help="최근 학습 실행 목록 출력")
+    parser.add_argument("--auto-launch", action="store_true", help="파라미터 설정 후 자동으로 main.py 실행")
     
     args = parser.parse_args()
     
