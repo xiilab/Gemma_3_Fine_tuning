@@ -5,7 +5,7 @@ import pandas as pd
 from datetime import datetime
 
 # MLflow 설정
-MLFLOW_TRACKING_URI = "http://10.61.3.161:30744/"
+MLFLOW_TRACKING_URI = "http://10.61.3.161:30366/"
 EXPERIMENT_NAME = "Gemma-2b-Code-Finetuning"
 
 def setup_mlflow():

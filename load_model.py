@@ -9,7 +9,7 @@ def load_from_mlflow(model_name="gemma-2b-code-finetuned", version="latest"):
     """MLflow Model Registry에서 모델을 로드합니다."""
     try:
         # MLflow 설정
-        mlflow.set_tracking_uri("http://10.61.3.161:30744/")
+        mlflow.set_tracking_uri("http://10.61.3.161:30366/")
         
         # 등록된 모델 로드 시도
         model_uri = f"models:/{model_name}/{version}"

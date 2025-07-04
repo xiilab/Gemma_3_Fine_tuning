@@ -18,7 +18,20 @@ from datetime import datetime
 import json
 
 # MLflow 설정
-mlflow.set_tracking_uri("http://10.61.3.161:30744/")  # 원격 MLflow 서버 사용
+import argparse
+import sys
+
+def get_mlflow_uri():
+    """명령행 인수 또는 기본값으로 MLflow URI 가져오기"""
+    if '--mlflow-uri' in sys.argv:
+        parser = argparse.ArgumentParser(add_help=False)
+        parser.add_argument('--mlflow-uri', type=str, default="http://10.61.3.161:30366/")
+        args, _ = parser.parse_known_args()
+        return args.mlflow_uri
+    return "http://10.61.3.161:30366/"
+
+MLFLOW_URI = get_mlflow_uri()
+mlflow.set_tracking_uri(MLFLOW_URI)
 experiment_name = "Gemma-2b-Code-Finetuning"
 mlflow.set_experiment(experiment_name)
 
@@ -37,7 +50,8 @@ hyperparams = {
     "dataset_end": 10000,  # 데이터셋 끝 인덱스 (exclusive)
     "target_modules": ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
     "continue_from_model": None,  # MLflow에서 가져올 모델 이름 (예: "gemma-2b-code-finetuned")
-    "continue_from_run_id": None  # 특정 run_id에서 가져올 경우
+    "continue_from_run_id": None,  # 특정 run_id에서 가져올 경우
+    "new_model_name": None  # 새로운 모델명 (None이면 자동 생성)
 }
 
 def load_model_from_mlflow(model_name=None, run_id=None):
@@ -249,9 +263,24 @@ def main():
 
         # 8. 모델 저장 및 MLflow 등록
         if accelerator.is_main_process:
-            # 로컬 저장을 위한 디렉토리 준비
-            output_dir = "/datasets/github-code/gemma-2b-code-finetuned"
+            # 모델명 결정 로직
+            if hyperparams.get("new_model_name"):
+                # 사용자가 지정한 새로운 모델명 사용
+                model_name = hyperparams["new_model_name"]
+            elif hyperparams.get("continue_from_model"):
+                # 연속 학습인 경우: 기존 모델명 사용
+                model_name = hyperparams["continue_from_model"]
+            else:
+                # 새로운 학습인 경우: 자동 생성
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                base_model = hyperparams["model_name"].split("/")[-1]  # "google/gemma-2b" -> "gemma-2b"
+                model_name = f"{base_model}-finetuned-{timestamp}"
+            
+            output_dir = f"/datasets/github-code/{model_name}"
             os.makedirs(output_dir, exist_ok=True)
+            
+            print(f"📁 모델 저장 경로: {output_dir}")
+            print(f"🏷️ 모델명: {model_name}")
             
             # 모델 unwrap
             unwrapped_model = accelerator.unwrap_model(model)
@@ -296,7 +325,8 @@ def main():
                 # 모델 업로드 전 서버 상태 확인
                 import requests
                 try:
-                    response = requests.get("http://10.61.3.161:30744/health", timeout=10)
+                    health_url = f"{MLFLOW_URI.rstrip('/')}/health"
+                    response = requests.get(health_url, timeout=10)
                     if response.status_code != 200:
                         print("⚠️ MLflow 서버 상태가 불안정합니다. 업로드를 건너뜁니다.")
                         raise Exception("MLflow server health check failed")
@@ -464,7 +494,7 @@ def main():
                 mlflow.log_param("model_save_path", output_dir)
                 mlflow.log_param("error_status", str(e))
                 
-        print("학습 완료! MLflow UI에서 결과를 확인하세요: http://10.61.3.161:30744/")
+        print(f"학습 완료! MLflow UI에서 결과를 확인하세요: {MLFLOW_URI}")
 
 # 직접 실행될 때만 학습 시작
 if __name__ == "__main__":

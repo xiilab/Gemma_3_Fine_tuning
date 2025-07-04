@@ -67,6 +67,7 @@ def main():
     parser = argparse.ArgumentParser(description="MLflow에서 모델을 로드하여 학습 계속")
     parser.add_argument("--model-name", type=str, help="MLflow Model Registry에서 로드할 모델 이름")
     parser.add_argument("--run-id", type=str, help="특정 run_id에서 모델을 로드")
+    parser.add_argument("--new-model-name", type=str, help="새로운 모델명 (저장될 때 사용)")
     parser.add_argument("--epochs", type=int, default=1, help="추가 학습할 에포크 수")
     parser.add_argument("--learning-rate", type=float, default=2e-4, help="학습률")
     parser.add_argument("--batch-size", type=int, default=2, help="배치 크기")
@@ -75,11 +76,14 @@ def main():
     parser.add_argument("--list-models", action="store_true", help="사용 가능한 모델 목록 출력")
     parser.add_argument("--list-runs", action="store_true", help="최근 학습 실행 목록 출력")
     parser.add_argument("--auto-launch", action="store_true", help="파라미터 설정 후 자동으로 main.py 실행")
+    parser.add_argument("--upload-retry", action="store_true", help="학습 후 MLflow 업로드 재시도")
+    parser.add_argument("--mlflow-uri", type=str, default="http://10.61.3.161:30366/", help="MLflow 서버 주소")
     
     args = parser.parse_args()
     
     # MLflow 설정
-    mlflow.set_tracking_uri("http://10.61.3.161:30744/")
+    MLFLOW_URI = args.mlflow_uri
+    mlflow.set_tracking_uri(MLFLOW_URI)
     
     if args.list_models:
         list_available_models()
@@ -104,6 +108,7 @@ def main():
     # 하이퍼파라미터 업데이트
     hyperparams["continue_from_model"] = args.model_name
     hyperparams["continue_from_run_id"] = args.run_id
+    hyperparams["new_model_name"] = args.new_model_name
     hyperparams["num_epochs"] = args.epochs
     hyperparams["learning_rate"] = args.learning_rate
     hyperparams["batch_size"] = args.batch_size
@@ -111,8 +116,25 @@ def main():
     hyperparams["dataset_end"] = args.dataset_end
     
     print("✅ 하이퍼파라미터가 업데이트되었습니다.")
-    print("🚀 main.py를 실행하여 학습을 시작하세요:")
-    print("   python main.py")
+    
+    if args.upload_retry:
+        print("🔄 MLflow 업로드 재시도를 실행합니다...")
+        import subprocess
+        import sys
+        try:
+            result = subprocess.run([
+                sys.executable, "retry_mlflow_upload.py", "--auto-detect"
+            ], check=True, capture_output=False)
+            print("✅ MLflow 업로드 재시도 완료!")
+        except subprocess.CalledProcessError as e:
+            print(f"❌ MLflow 업로드 재시도 실패: {e}")
+    else:
+        print("🚀 main.py를 실행하여 학습을 시작하세요:")
+        print("   accelerate launch main.py")
+        print("   또는")
+        print("   python main.py")
+        print("\n💡 MLflow 업로드 재시도:")
+        print("   python retry_mlflow_upload.py --auto-detect")
 
 if __name__ == "__main__":
     main() 

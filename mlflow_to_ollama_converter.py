@@ -18,7 +18,7 @@ from mlflow.tracking import MlflowClient
 import tempfile
 
 class MLflowToOllamaConverter:
-    def __init__(self, mlflow_tracking_uri="http://10.61.3.161:30744/"):
+    def __init__(self, mlflow_tracking_uri="http://10.61.3.161:30366/"):
         self.mlflow_tracking_uri = mlflow_tracking_uri
         self.client = None
         self.setup_mlflow()
@@ -746,7 +746,7 @@ def main():
     parser.add_argument("--experiment", default="Gemma-2b-Code-Finetuning", 
                        help="MLflow 실험 이름")
     parser.add_argument("--list", action="store_true", help="사용 가능한 모델 목록 표시")
-    parser.add_argument("--mlflow-uri", default="http://10.61.3.161:30744/",
+    parser.add_argument("--mlflow-uri", default="http://10.61.3.161:30366/",
                        help="MLflow tracking URI")
     parser.add_argument("--no-cleanup", action="store_true", help="임시 파일 정리하지 않음")
     
